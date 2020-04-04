@@ -4,7 +4,7 @@ data "aws_iam_policy_document" "bucket_policy" {
   statement {
     actions   = ["s3:GetObject"]
     effect    = "Allow"
-    resources = ["arn:aws:s3:::${var.domain_name}"]
+    resources = ["arn:aws:s3:::${var.domain_name}/*"]
 
     principals {
       type        = "AWS"
