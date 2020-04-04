@@ -80,9 +80,8 @@ resource "aws_lambda_function" "lambda_edge" {
 
 ## Manually Add CloudWatch Log Group for Lambda
 resource "aws_cloudwatch_log_group" "lambda" {
-  name              = "/aws/lambda/${local.lambda_name}"
+  name              = "/aws/lambda/us-east-1.${local.lambda_name}"
   retention_in_days = 7
-  provider          = aws.us_east_1
 }
 
 resource "aws_iam_policy" "lambda_policy" {
