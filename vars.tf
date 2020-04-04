@@ -8,7 +8,7 @@ variable "s3_storage_class" {
 }
 
 variable "s3_transition_days" {
-  default     = 1
+  default     = 30
   description = "Number of days that pass before transition to the cheaper storage class automatically triggers"
 }
 
