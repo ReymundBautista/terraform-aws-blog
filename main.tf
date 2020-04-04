@@ -2,7 +2,7 @@
 resource "aws_s3_bucket" "bucket" {
   bucket = var.domain_name
   acl    = var.s3_acl
-  policy = data.aws_iam_policy_document.bucket_policy
+  policy = data.aws_iam_policy_document.bucket_policy.json
 
   lifecycle_rule {
     id      = "Transition to cheaper storage"
