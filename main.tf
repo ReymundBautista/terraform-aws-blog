@@ -87,5 +87,6 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
 
   viewer_certificate {
     acm_certificate_arn = var.cf_certificate_arn
+    ssl_support_method  = "sni-only" # Requried if using acm cert
   }
 }
