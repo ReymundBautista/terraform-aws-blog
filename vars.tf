@@ -1,5 +1,4 @@
 variable "domain_name" {
-  default     = "blog.mr8ball.net"
   description = "The name of the s3 bucket that will match thet website name"
 }
 
