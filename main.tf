@@ -24,8 +24,77 @@ locals {
   s3_origin_id = var.s3_origin_id != "" ? var.s3_origin_id : var.domain_name
 }
 
+## TODO: This probably doesn't need to be in the module. This identity could be reused for multiple CF distributions
 resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {
   comment = "Only the cloudfront user can access s3"
+}
+
+## See this blog post: https://aws.amazon.com/blogs/compute/implementing-default-directory-indexes-in-amazon-s3-backed-amazon-cloudfront-origins-using-lambdaedge/
+resource "aws_iam_role" "lambda_edge" {
+  name               = "${replace(var.domain_name, ".", "-")}-lambda-edge"
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": ["lambda.amazonaws.com", "edgelambda.amazonaws.com"]
+      },
+      "Effect": "Allow"
+    }
+  ]
+}
+EOF
+}
+
+
+## The lambda must be provisioned in us-east-1 per the docs:
+## https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/lambda-at-the-edge.html
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+}
+
+locals {
+  lambda_name = "${replace(var.domain_name, ".", "-")}-lambda-edge" ## Lambda function names can't have .
+}
+
+resource "aws_lambda_function" "lambda_edge" {
+  depends_on       = [aws_iam_role_policy_attachment.attach_to_lambda_role, aws_cloudwatch_log_group.lambda]
+  function_name    = local.lambda_name
+  filename         = "${path.module}/assets/lambda_payload.zip"
+  role             = aws_iam_role.lambda_edge.arn
+  handler          = "index.handler"
+  publish          = true
+  runtime          = "nodejs12.x"
+  source_code_hash = filebase64sha256("${path.module}/assets/lambda_payload.zip")
+  provider         = aws.us_east_1
+
+
+  tags = {
+    Name = "${var.domain_name}-lambda-edge"
+    Blog = var.domain_name
+  }
+}
+
+## Manually Add CloudWatch Log Group for Lambda
+resource "aws_cloudwatch_log_group" "lambda" {
+  name              = "/aws/lambda/${local.lambda_name}"
+  retention_in_days = 7
+  provider          = aws.us_east_1
+}
+
+resource "aws_iam_policy" "lambda_policy" {
+  name        = "${var.domain_name}-lambda-edge-logging"
+  path        = "/service-role/"
+  description = "IAM Policy for ${var.domain_name}-lambda-edge-logging"
+  policy      = data.aws_iam_policy_document.lambda_policy.json
+}
+
+resource "aws_iam_role_policy_attachment" "attach_to_lambda_role" {
+  policy_arn = aws_iam_policy.lambda_policy.arn
+  role       = aws_iam_role.lambda_edge.name
 }
 
 resource "aws_cloudfront_distribution" "s3_distribution" {
@@ -65,10 +134,16 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
       }
     }
 
-    viewer_protocol_policy = "allow-all"
+    viewer_protocol_policy = "redirect-to-https"
     min_ttl                = 0
     default_ttl            = 3600
     max_ttl                = 86400
+
+    lambda_function_association {
+      event_type   = "origin-request" # We need to rewrite the URL of the origin request
+      lambda_arn   = aws_lambda_function.lambda_edge.qualified_arn
+      include_body = false
+    }
   }
 
   price_class = var.cf_price_class
