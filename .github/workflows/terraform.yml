@@ -18,11 +18,13 @@ jobs:
         with:
           tf_actions_version: 0.12.23
           tf_actions_subcommand: 'init'
+          tf_actions_working_dir: './example'
       - name: 'Terraform Validate'
         uses: hashicorp/terraform-github-actions@master
         with:
           tf_actions_version: 0.12.23
           tf_actions_subcommand: 'validate'
+          tf_actions_working_dir: './example'
         env:
           AWS_DEFAULT_REGION: us-east-2
       - name: 'Terraform Plan'
@@ -30,7 +32,7 @@ jobs:
         with:
           tf_actions_version: 0.12.23
           tf_actions_subcommand: 'plan'
-          args: '-var="domain_name=test" -var="cf_certificate_arn=arn:aws:acm:us-east-1:111111111111:certificate/11111111-1111-1111-1111-111111111111"'
+          tf_actions_working_dir: './example'
         env:
           AWS_DEFAULT_REGION: us-east-2
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
